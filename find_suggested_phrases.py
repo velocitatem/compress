@@ -2,7 +2,7 @@
 
 """
 Script to turn a corpus of text into a list of suggested phrases
-and abbreviations. 
+and abbreviations.
 
 Reads data from data/corpus/*.txt
 Outputs suggested abbreviations to output/suggested_shortcuts.yaml
@@ -24,32 +24,28 @@ Shortcut = namedtuple("Shortcut", ["phrase", "abbrev", "score", "count", "len"])
 
 def get_possible_abbrevs(phrase: str) -> List[str]:
     """Get possible short abbreviations for a phrase, in order of preference"""
-    words = phrase.split()
-    out: List[str] = []
 
-    if len(words) > 1:
-        out.append("".join([w[0] for w in words]))  # acryonym
-        out.append(words[0][0] + words[1][0])
-        out.append(words[0][:2] + words[1][0])
+    def safe_slice(start, end=None):
+        return phrase[start:end] if len(phrase) > start else ""
 
-    phrase = phrase.replace(" ", "")
+    def safe_concat(*slices):
+        return "".join(safe_slice(*s) for s in slices)
 
-    out += [
-        phrase[0],
-        phrase[0] + phrase[-1],
-        phrase[:2],
-        phrase[1],
-        phrase[-1],
-        phrase[1],
-        phrase[:3],
-        phrase[:2] + phrase[-1],
-        phrase[0] + phrase[-2:],
-        phrase[:4],
-        phrase[:2] + phrase[-2:]
+    operations = [
+        lambda: safe_slice(0, 1),
+        lambda: safe_concat((0, 1), (-1, None)),
+        lambda: safe_slice(0, 2),
+        lambda: safe_slice(1, 2),
+        lambda: safe_slice(-1, None),
+        lambda: safe_slice(1, 2),
+        lambda: safe_slice(0, 3),
+        lambda: safe_concat((0, 2), (-1, None)),
+        lambda: safe_concat((0, 1), (-2, None)),
+        lambda: safe_slice(0, 4),
+        lambda: safe_concat((0, 2), (-2, None))
     ]
 
-    return out
-
+    return [o for o in [op() for op in operations] if o != ""]
 
 def match_abbrevs_to_phrases(results: List[tuple], presets : Dict[str, str]) -> Dict[str, str]:
     """Find the best abbreviation for each phrase without overlap.
